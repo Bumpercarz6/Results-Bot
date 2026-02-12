@@ -1,3 +1,15 @@
+const TEST_DATE = process.env.TEST_DATE || null;
+
+function getTodayDate() {
+  if (TEST_DATE) {
+    console.log("🧪 TEST MODE:", TEST_DATE);
+    return TEST_DATE; // format: YYYY-MM-DD
+  }
+
+  const now = new Date();
+  return now.toISOString().split("T")[0];
+}
+
 require("dotenv").config();
 const { Client, GatewayIntentBits } = require("discord.js");
 const { google } = require("googleapis");
