@@ -130,4 +130,6 @@ client.once("clientReady", async () => {
 /**********************
  * LOGIN
  **********************/
-client.login(BOT_TOKEN);
+client.once("ready", () => {
+  console.log(`Logged in as ${client.user.tag}`);
+});
