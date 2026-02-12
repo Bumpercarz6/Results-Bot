@@ -6,6 +6,17 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
+const TEST_DATE = process.env.TEST_DATE || null;
+
+function getTodayDate() {
+  if (TEST_DATE) {
+    console.log("🧪 TEST MODE:", TEST_DATE);
+    return TEST_DATE; // format: YYYY-MM-DD
+  }
+
+  const now = new Date();
+}
+
 /**********************
  * CONFIG
  **********************/
@@ -34,18 +45,6 @@ function todayISO() {
   return new Date().toLocaleDateString("en-CA", {
     timeZone: TIMEZONE,
   });
-}
-
-const TEST_DATE = process.env.TEST_DATE || null;
-
-function getTodayDate() {
-  if (TEST_DATE) {
-    console.log("🧪 TEST MODE:", TEST_DATE);
-    return TEST_DATE; // format: YYYY-MM-DD
-  }
-
-  const now = new Date();
-  return now.toISOString().split("T")[0];
 }
 
 /**********************
