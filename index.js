@@ -1,103 +1,92 @@
+/*********************************
+ * WHL MORNING GAMES BOT
+ *********************************/
+
 require("dotenv").config();
-console.log("🚨 TEST_DATE FROM ENV:", process.env.TEST_DATE);
 const { Client, GatewayIntentBits } = require("discord.js");
-const { google } = require("googleapis");
+const fetch = require("node-fetch");
+
+/*********************************
+ * CONFIG
+ *********************************/
+
+const TOKEN = process.env.BOT_TOKEN;
+const CHANNEL_ID = process.env.CHANNEL_ID;
+
+// Optional test date via Railway ENV
+// Example: TEST_DATE = 2026-02-12
+function getTodayDate() {
+  const testDate = process.env.TEST_DATE;
+
+  if (testDate) {
+    console.log("🧪 Using TEST_DATE:", testDate);
+    return testDate;
+  }
+
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+
+  const realDate = `${yyyy}-${mm}-${dd}`;
+  console.log("📅 Using REAL DATE:", realDate);
+  return realDate;
+}
+
+/*********************************
+ * DISCORD CLIENT
+ *********************************/
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-const TEST_DATE = process.env.TEST_DATE || null;
-
-function getTodayDate() {
-  if (TEST_DATE) {
-    console.log("🧪 TEST MODE:", TEST_DATE);
-    return TEST_DATE; // format: YYYY-MM-DD
-  }
-
-  const now = new Date();
-}
-
-/**********************
- * CONFIG
- **********************/
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
-const RESULTS_SHEET = "Results";
-const CHANNEL_ID = process.env.GAMES_CHANNEL_ID;
-const TIMEZONE = "America/Edmonton";
-
-/**********************
- * GOOGLE AUTH
- **********************/
-const auth = new google.auth.GoogleAuth({
-  credentials: {
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-  },
-  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-});
-
-const sheets = google.sheets({ version: "v4", auth });
-
-/**********************
- * GET TODAY DATE
- **********************/
-function todayISO() {
-  return new Date().toLocaleDateString("en-CA", {
-    timeZone: TIMEZONE,
-  });
-}
-
-/**********************
- * FETCH TODAY GAMES
- **********************/
-async function getTodayGames() {
-  const date = todayISO();
-
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${RESULTS_SHEET}!A2:C`, // Date, Home, Away only
-  });
-
-  const rows = res.data.values || [];
-
-  return rows.filter(r => r[0] === date);
-}
-
-/**********************
- * POST GAMES
- **********************/
-async function postGames() {
-  const channel = await client.channels.fetch(CHANNEL_ID);
-  const games = await getTodayGames();
-  const date = todayISO();
-
-  if (!games.length) {
-    await channel.send(`🏒 **${date}**\nNo games today.`);
-    return;
-  }
-
-  let message = `🏒 **WHL Games — ${date}**\n\n`;
-
-  games.forEach(g => {
-    const [, home, away] = g;
-    message += `${away} @ ${home}\n`;
-  });
-
-  await channel.send(message);
-}
-
-/**********************
- * READY
- **********************/
-client.once("ready", async () => {
+client.once("clientReady", async () => {
   console.log("Morning Games Bot Ready");
 
-  await postGames();
-  process.exit(0); // VERY important for Railway cron
+  try {
+    const today = getTodayDate();
+    console.log("Date being used:", today);
+
+    // 🔥 Example API (replace if needed)
+    const url = `https://api-web.nhle.com/v1/score/${today}`;
+
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      console.log("❌ API error:", res.status);
+      process.exit(0);
+    }
+
+    const data = await res.json();
+
+    if (!data.games || data.games.length === 0) {
+      console.log("ℹ️ No games today");
+      process.exit(0);
+    }
+
+    const gamesList = data.games.map(g => {
+      return `• ${g.awayTeam.abbrev} @ ${g.homeTeam.abbrev}`;
+    });
+
+    const message =
+      `📅 **Games for ${today}**\n\n` +
+      gamesList.join("\n");
+
+    const channel = await client.channels.fetch(CHANNEL_ID);
+    await channel.send(message);
+
+    console.log("✅ Games posted successfully");
+    process.exit(0);
+
+  } catch (err) {
+    console.error("❌ Bot error:", err);
+    process.exit(1);
+  }
 });
 
-/**********************
+/*********************************
  * LOGIN
- **********************/
-client.login(process.env.BOT_TOKEN);
+ *********************************/
+
+client.login(TOKEN);
