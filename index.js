@@ -1,6 +1,7 @@
 require("dotenv").config();
 const { Client, GatewayIntentBits } = require("discord.js");
 const { google } = require("googleapis");
+console.log("CHANNEL_ID:", process.env.CHANNEL_ID);
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
